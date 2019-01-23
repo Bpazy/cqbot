@@ -1,9 +1,9 @@
 package main
 
 import (
-	"cqbot/id"
 	"encoding/json"
 	"flag"
+	"github.com/Bpazy/cqbot/id"
 	"github.com/gin-gonic/gin"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/gorm"
