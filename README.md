@@ -1,1 +1,1 @@
-"# cqbot" 
+cqbot
