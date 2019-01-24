@@ -50,7 +50,7 @@ type PrivateMessage struct {
 	Message     string                `json:"message" gorm:"text"`
 	RawMessage  string                `json:"raw_message" gorm:"text"`
 	Font        int32                 `json:"font"`
-	Sender      *PrivateMessageSender `json:"sender"`
+	Sender      *PrivateMessageSender `json:"sender" gorm:"foreignkey:SenderId;association_foreignkey:CID"`
 	SenderId    string
 }
 
@@ -92,10 +92,10 @@ type GroupMessage struct {
 	UserId      int64                  `json:"user_id"`
 	Anonymous   *GroupMessageAnonymous `json:"anonymous"`
 	AnonymousId string
-	Message     string              `json:"message"`
-	RawMessage  string              `json:"raw_message"`
+	Message     string              `json:"message" gorm:"text"`
+	RawMessage  string              `json:"raw_message" gorm:"text"`
 	Font        int32               `json:"font"`
-	Sender      *GroupMessageSender `json:"sender"`
+	Sender      *GroupMessageSender `json:"sender" gorm:"foreignkey:SenderId;association_foreignkey:CID"`
 	SenderId    string
 }
 
@@ -114,10 +114,10 @@ type DiscussMessage struct {
 	MessageId   int32                 `json:"message_id"`
 	DiscussId   int64                 `json:"discuss_id"`
 	UserId      int64                 `json:"user_id"`
-	Message     string                `json:"message"`
-	RawMessage  string                `json:"raw_message"`
+	Message     string                `json:"message" gorm:"text"`
+	RawMessage  string                `json:"raw_message" gorm:"text"`
 	Font        int32                 `json:"font"`
-	Sender      *DiscussMessageSender `json:"sender"`
+	Sender      *DiscussMessageSender `json:"sender" gorm:"foreignkey:SenderId;association_foreignkey:CID"`
 	SenderId    string
 }
 
