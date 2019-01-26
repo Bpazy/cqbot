@@ -1,4 +1,7 @@
 # cqbot
+[![Build Status](https://travis-ci.com/Bpazy/cqbot.svg?branch=master)](https://travis-ci.com/Bpazy/cqbot)
+
+[coolq-http-api](https://github.com/richardchien/coolq-http-api) is necessary.
 
 ## Usage
 ```
