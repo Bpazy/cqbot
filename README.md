@@ -1,7 +1,8 @@
 # cqbot
 [![Build Status](https://travis-ci.com/Bpazy/cqbot.svg?branch=master)](https://travis-ci.com/Bpazy/cqbot)
+[![Docker pulls](https://img.shields.io/docker/pulls/hanziyuan08/cqbot.svg)](https://hub.docker.com/r/hanziyuan08/cqbot)
 
-[coolq-http-api](https://github.com/richardchien/coolq-http-api) is necessary. 
+[coolq-http-api](https://github.com/richardchien/coolq-http-api) is necessary.
 
 ## Usage
 ```
