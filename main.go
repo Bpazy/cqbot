@@ -90,7 +90,7 @@ type GroupMessage struct {
 	MessageId   int32                  `json:"message_id"`
 	GroupId     int64                  `json:"group_id"`
 	UserId      int64                  `json:"user_id"`
-	Anonymous   *GroupMessageAnonymous `json:"anonymous"`
+	Anonymous   *GroupMessageAnonymous `json:"anonymous"  gorm:"foreignkey:AnonymousId;association_foreignkey:CID"`
 	AnonymousId string
 	Message     string              `json:"message" gorm:"type:text"`
 	RawMessage  string              `json:"raw_message" gorm:"type:text"`
@@ -294,5 +294,8 @@ func ensureTable() {
 	}
 	if !db.HasTable(DiscussMessageSender{}) {
 		db.CreateTable(DiscussMessageSender{})
+	}
+	if !db.HasTable(GroupMessageAnonymous{}) {
+		db.CreateTable(GroupMessageAnonymous{})
 	}
 }
