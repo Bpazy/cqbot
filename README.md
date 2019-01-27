@@ -36,5 +36,5 @@ $ sudo docker run --name=coolq --rm -p 9000:9000 --network=coolq-net -v /home/ha
 ```
 5. Start cqbot.
 ```shell
-$ sudo docker run --name cqbot --rm --network coolq-net hanziyuan08/cqbot:1.0.0 -dns "user:password@tcp(localhost)/db_name"
+$ sudo docker run --name cqbot --rm --network coolq-net hanziyuan08/cqbot -dns "user:password@tcp(localhost)/db_name"
 ```
