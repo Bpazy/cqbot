@@ -12,6 +12,14 @@ import (
 	"time"
 )
 
+var (
+	port *string
+)
+
+func init() {
+	port = flag.String("port", "12345", "port")
+}
+
 func main() {
 	r := gin.New()
 	r.Use(gin.Recovery())
@@ -22,7 +30,7 @@ func main() {
 		}
 		c.JSON(200, nil)
 	})
-	_ = r.Run("0.0.0.0:12345") // listen and serve on 0.0.0.0:8080
+	_ = r.Run("0.0.0.0:" + *port)
 }
 
 type Model struct {
