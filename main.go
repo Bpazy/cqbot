@@ -144,6 +144,12 @@ const (
 	discuss = "discuss"
 )
 
+type PrivateMessageHandler interface {
+	handle(message *PrivateMessage)
+}
+
+var privateMessageHandlers []PrivateMessageHandler
+
 func dispatchMsg(c *gin.Context) error {
 	bodyBytes, err := ioutil.ReadAll(c.Request.Body)
 	if err != nil {
@@ -242,6 +248,10 @@ func handlePrivateMessage(bytes []byte) error {
 
 	log.Printf("[%s] %s(%d) say: %s", message.MessageType, message.Sender.Nickname, message.UserId, message.Message)
 	savePrivateMessage(&message)
+
+	for _, handler := range privateMessageHandlers {
+		handler.handle(&message)
+	}
 	return nil
 }
 
