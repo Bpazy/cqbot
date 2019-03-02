@@ -1,7 +1,7 @@
 package main
 
-type Xianmu struct {
-	UserId   string
-	Nickname string
-	Count    int
+type Xunsu struct {
+	UserId   string `db:"user_id"`
+	Nickname string `db:"nickname"`
+	Count    int    `db:"count"`
 }

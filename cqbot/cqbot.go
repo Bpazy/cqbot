@@ -11,11 +11,11 @@ func Run(addr string) {
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.POST("/", func(c *gin.Context) {
-		err := dispatchMsg(c)
+		reply, err := dispatchMsg(c)
 		if err != nil {
 			panic(err)
 		}
-		c.JSON(200, nil)
+		c.JSON(200, reply)
 	})
 	_ = r.Run(addr)
 }
@@ -31,7 +31,7 @@ type PrivateMessageHandler func(message *PrivateMessage)
 
 var privateMessageHandlers []PrivateMessageHandler
 
-type GroupMessageHandler func(message *GroupMessage)
+type GroupMessageHandler func(message *GroupMessage) *GroupReplyMessage
 
 var groupMessageHandlers []GroupMessageHandler
 
@@ -49,31 +49,32 @@ func AddDiscussMessageHandler(handler DiscussMessageHandler) {
 	discussMessageHandlers = append(discussMessageHandlers, handler)
 }
 
-func dispatchMsg(c *gin.Context) error {
+func dispatchMsg(c *gin.Context) (interface{}, error) {
 	bodyBytes, err := ioutil.ReadAll(c.Request.Body)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer c.Request.Body.Close()
 
 	postType := PostType{}
 	err = json.Unmarshal(bodyBytes, &postType)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	var reply interface{}
 	if postType.PostType == "message" {
 		messagePostType := MessagePostType{}
 		err = json.Unmarshal(bodyBytes, &messagePostType)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		if messagePostType.MessageType == private {
 			err = handlePrivateMessage(bodyBytes)
 		}
 		if messagePostType.MessageType == group {
-			err = handleGroupMessage(bodyBytes)
+			reply, err = handleGroupMessage(bodyBytes)
 		}
 		if messagePostType.MessageType == discuss {
 			err = handleDiscussMessage(bodyBytes)
@@ -83,10 +84,10 @@ func dispatchMsg(c *gin.Context) error {
 	}
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return reply, nil
 }
 
 func handleDiscussMessage(bytes []byte) error {
@@ -104,19 +105,20 @@ func handleDiscussMessage(bytes []byte) error {
 	return nil
 }
 
-func handleGroupMessage(bytes []byte) error {
+func handleGroupMessage(bytes []byte) (*GroupReplyMessage, error) {
 	message := GroupMessage{}
 	err := json.Unmarshal(bytes, &message)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	log.Printf("[%s] %s(%d) say: %s", message.MessageType, message.Sender.Nickname, message.UserId, message.Message)
+	log.Printf("[%s] %s(%d) say: %s", *message.MessageType, *message.Sender.Nickname, message.UserId, *message.Message)
 
+	var reply *GroupReplyMessage
 	for _, handler := range groupMessageHandlers {
-		handler(&message)
+		reply = handler(&message)
 	}
-	return nil
+	return reply, nil
 }
 
 func handlePrivateMessage(bytes []byte) error {
@@ -126,7 +128,7 @@ func handlePrivateMessage(bytes []byte) error {
 		return err
 	}
 
-	log.Printf("[%s] %s(%d) say: %s", message.MessageType, message.Sender.Nickname, message.UserId, message.Message)
+	log.Printf("[%s] %s(%d) say: %s", *message.MessageType, *message.Sender.Nickname, message.UserId, *message.Message)
 
 	for _, handler := range privateMessageHandlers {
 		handler(&message)

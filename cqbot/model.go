@@ -33,10 +33,10 @@ type PrivateMessage struct {
 
 type PrivateMessageSender struct {
 	Model
-	UserId   int64  `json:"user_id"`
-	Nickname string `json:"nickname"`
-	Sex      string `json:"sex"`
-	Age      int32  `json:"age"`
+	UserId   int64   `json:"user_id"`
+	Nickname *string `json:"nickname"`
+	Sex      *string `json:"sex"`
+	Age      *int32  `json:"age"`
 }
 
 type GroupMessageAnonymous struct {
@@ -48,15 +48,15 @@ type GroupMessageAnonymous struct {
 
 type GroupMessageSender struct {
 	Model
-	UserId   int64  `json:"user_id"`
-	Nickname string `json:"nickname"`
-	Card     string `json:"card"`
-	Sex      string `json:"sex"`
-	Age      int32  `json:"age"`
-	Area     string `json:"area"`
-	Level    string `json:"level"`
-	Role     string `json:"role"`
-	Title    string `json:"title"`
+	UserId   int64   `json:"user_id"`
+	Nickname *string `json:"nickname"`
+	Card     *string `json:"card"`
+	Sex      *string `json:"sex"`
+	Age      *int32  `json:"age"`
+	Area     *string `json:"area"`
+	Level    *string `json:"level"`
+	Role     *string `json:"role"`
+	Title    *string `json:"title"`
 }
 
 type GroupMessage struct {
@@ -74,6 +74,16 @@ type GroupMessage struct {
 	Font        *int32              `json:"font"`
 	Sender      *GroupMessageSender `json:"sender" gorm:"foreignkey:SenderId;association_foreignkey:CID"`
 	SenderId    *string
+}
+
+type GroupReplyMessage struct {
+	Reply       string `json:"reply"`
+	AutoEscape  bool   `json:"auto_escape"`
+	AtSender    bool   `json:"at_sender"`
+	Delete      bool   `json:"delete"`
+	Kick        bool   `json:"kick"`
+	Ban         bool   `json:"ban"`
+	BanDuration int    `json:"ban_duration"`
 }
 
 type DiscussMessageSender struct {
