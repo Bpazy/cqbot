@@ -3,9 +3,9 @@ package cqbot
 import "time"
 
 type Model struct {
-	CID       string `gorm:"primary_key;not null;varchar(20)"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	PkId       *string `gorm:"primary_key;not null;varchar(20)"`
+	CreateTime time.Time
+	UpdateTime time.Time
 }
 
 type PostType struct {
@@ -19,16 +19,16 @@ type MessagePostType struct {
 
 type PrivateMessage struct {
 	Model
-	PostType    string                `json:"post_type"`    // possible value: message
-	MessageType string                `json:"message_type"` // possible value: private
-	SubType     string                `json:"sub_type"`     // possible value: friend,group,discuss,other
-	MessageId   int32                 `json:"message_id"`
-	UserId      int64                 `json:"user_id"`
-	Message     string                `json:"message" gorm:"type:text"`
-	RawMessage  string                `json:"raw_message" gorm:"type:text"`
-	Font        int32                 `json:"font"`
+	PostType    *string               `json:"post_type"`    // possible value: message
+	MessageType *string               `json:"message_type"` // possible value: private
+	SubType     *string               `json:"sub_type"`     // possible value: friend,group,discuss,other
+	MessageId   *int32                `json:"message_id"`
+	UserId      *int64                `json:"user_id"`
+	Message     *string               `json:"message" gorm:"type:text"`
+	RawMessage  *string               `json:"raw_message" gorm:"type:text"`
+	Font        *int32                `json:"font"`
 	Sender      *PrivateMessageSender `json:"sender" gorm:"foreignkey:SenderId;association_foreignkey:CID"`
-	SenderId    string
+	SenderId    *string
 }
 
 type PrivateMessageSender struct {
@@ -61,19 +61,19 @@ type GroupMessageSender struct {
 
 type GroupMessage struct {
 	Model
-	PostType    string                 `json:"post_type"`    // possible value: message
-	MessageType string                 `json:"message_type"` // possible value: private
-	SubType     string                 `json:"sub_type"`     // possible value: friend,group,discuss,other
-	MessageId   int32                  `json:"message_id"`
-	GroupId     int64                  `json:"group_id"`
-	UserId      int64                  `json:"user_id"`
+	PostType    *string                `json:"post_type"`    // possible value: message
+	MessageType *string                `json:"message_type"` // possible value: private
+	SubType     *string                `json:"sub_type"`     // possible value: friend,group,discuss,other
+	MessageId   *int32                 `json:"message_id"`
+	GroupId     *int64                 `json:"group_id"`
+	UserId      *int64                 `json:"user_id"`
 	Anonymous   *GroupMessageAnonymous `json:"anonymous"  gorm:"foreignkey:AnonymousId;association_foreignkey:CID"`
-	AnonymousId string
-	Message     string              `json:"message" gorm:"type:text"`
-	RawMessage  string              `json:"raw_message" gorm:"type:text"`
-	Font        int32               `json:"font"`
+	AnonymousId *string
+	Message     *string             `json:"message" gorm:"type:text"`
+	RawMessage  *string             `json:"raw_message" gorm:"type:text"`
+	Font        *int32              `json:"font"`
 	Sender      *GroupMessageSender `json:"sender" gorm:"foreignkey:SenderId;association_foreignkey:CID"`
-	SenderId    string
+	SenderId    *string
 }
 
 type DiscussMessageSender struct {
