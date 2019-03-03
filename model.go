@@ -1,6 +1,6 @@
 package main
 
-type Xunsu struct {
+type KeywordInfo struct {
 	UserId   string `db:"user_id"`
 	Nickname string `db:"nickname"`
 	Count    int    `db:"count"`

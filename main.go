@@ -80,7 +80,7 @@ func main() {
 		if m.Message == nil {
 			return nil
 		}
-		r := regexp.MustCompile("炮粉统计一下七日内【(.+)】榜")
+		r := regexp.MustCompile("炮粉通报一下七日内【(.+)】榜")
 		keywords := r.FindStringSubmatch(*m.Message)
 		if len(keywords) < 2 {
 			return nil
@@ -111,26 +111,26 @@ func main() {
 			return nil
 		}
 
-		var xunsus []Xunsu
+		var keywordInfos []KeywordInfo
 		for rows.Next() {
-			x := Xunsu{}
+			x := KeywordInfo{}
 			err := rows.StructScan(&x)
 			if err != nil {
 				log.Error(err)
 				return nil
 			}
-			xunsus = append(xunsus, x)
+			keywordInfos = append(keywordInfos, x)
 		}
 
-		if len(xunsus) == 0 {
+		if len(keywordInfos) == 0 {
 			return nil
 		}
-		log.Println(xunsus)
+		log.Println(keywordInfos)
 
 		reply := "七日" + keyword + "榜！\r\n"
 		template := "No.%d(%s[%s])%d次"
-		for index, xunsu := range xunsus {
-			reply = reply + fmt.Sprintf(template, index+1, xunsu.Nickname, xunsu.UserId, xunsu.Count)
+		for index, xunsu := range keywordInfos {
+			reply = reply + fmt.Sprintf(template, index+1, xunsu.Nickname, xunsu.UserId, xunsu.Count) + "\r\n"
 		}
 
 		return &cqbot.GroupReplyMessage{
