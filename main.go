@@ -8,6 +8,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	log "github.com/sirupsen/logrus"
+	"regexp"
 	"strings"
 )
 
@@ -76,9 +77,15 @@ func main() {
 	})
 
 	cqbot.AddGroupMessageHandler(func(m *cqbot.GroupMessage) *cqbot.GroupReplyMessage {
-		if m.Message == nil || !strings.Contains(*m.Message, "炮粉") {
+		if m.Message == nil {
 			return nil
 		}
+		r := regexp.MustCompile("炮粉统计一下七日内【(.+)】榜")
+		keywords := r.FindStringSubmatch(*m.Message)
+		if len(keywords) < 2 {
+			return nil
+		}
+		keyword := keywords[1]
 
 		s := `select 
                 distinct a.user_id as user_id,
@@ -91,12 +98,13 @@ func main() {
                 count(*) as num
                 from cqbot_group_message_sender a
                 join cqbot_group_message b on a.pk_id = b.sender_id
-                where b.message like '%迅速%'
+                where b.message = '{}'
                 and b.create_time >= date_sub(curdate(),interval 7 day)
                 group by a.user_id
 			  ) b on a.user_id = b.user_id
 			  order by b.num desc
-              limit 3`
+              limit 5`
+		s = strings.Replace(s, "{}", keyword, -1)
 		rows, err := db.Queryx(s)
 		if err != nil {
 			log.Error(err)
@@ -114,15 +122,19 @@ func main() {
 			xunsus = append(xunsus, x)
 		}
 
-		if len(xunsus) <= 2 {
+		if len(xunsus) == 0 {
 			return nil
 		}
 		log.Println(xunsus)
+
+		reply := "七日" + keyword + "榜！\r\n"
+		template := "No.%d(%s[%s])%d次"
+		for index, xunsu := range xunsus {
+			reply = reply + fmt.Sprintf(template, index+1, xunsu.Nickname, xunsu.UserId, xunsu.Count)
+		}
+
 		return &cqbot.GroupReplyMessage{
-			Reply: fmt.Sprintf("七日迅速榜！No.1(%s[%s])%d次, No.2(%s[%s])%d次, No.3(%s[%s])%d次",
-				xunsus[0].Nickname, xunsus[0].UserId, xunsus[0].Count,
-				xunsus[1].Nickname, xunsus[1].UserId, xunsus[1].Count,
-				xunsus[2].Nickname, xunsus[2].UserId, xunsus[2].Count),
+			Reply: reply,
 		}
 	})
 
