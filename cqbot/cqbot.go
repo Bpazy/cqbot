@@ -180,12 +180,14 @@ func (client *Client) SendMessage(message string, groupId int64) {
 
 	jsonStr, err := json.Marshal(m)
 	if err != nil {
-		panic(err)
+		log.Println(err)
+		return
 	}
 
 	resp, err := http.Post(groupMessageUrl, "application/json", bytes.NewBuffer(jsonStr))
 	if err != nil {
-		panic(err)
+		log.Println(err)
+		return
 	}
 	defer resp.Body.Close()
 
