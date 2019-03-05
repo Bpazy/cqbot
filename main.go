@@ -48,7 +48,7 @@ func main() {
 		}
 	})
 
-	cqbot.AddGroupMessageHandler(func(m *cqbot.GroupMessage) *cqbot.GroupReplyMessage {
+	cqbot.AddGroupMessageHandler(func(m *cqbot.GroupMessage) {
 		m.PkId = id.PId()
 		if m.Sender != nil {
 			senderId := id.PId()
@@ -73,17 +73,17 @@ func main() {
 			db.MustExec("insert into cqbot_group_message_anonymous (pk_id, id, name, flag) values (?,?,?,?)",
 				a.PkId, a.Id, a.Name, a.Flag)
 		}
-		return nil
+		return
 	})
 
-	cqbot.AddGroupMessageHandler(func(m *cqbot.GroupMessage) *cqbot.GroupReplyMessage {
+	cqbot.AddGroupMessageHandler(func(m *cqbot.GroupMessage) {
 		if m.Message == nil {
-			return nil
+			return
 		}
 		r := regexp.MustCompile("炮粉通报一下七日内【(.+)】榜")
 		keywords := r.FindStringSubmatch(*m.Message)
 		if len(keywords) < 2 {
-			return nil
+			return
 		}
 		keyword := keywords[1]
 
@@ -107,8 +107,8 @@ func main() {
 		s = strings.Replace(s, "{}", keyword, -1)
 		rows, err := db.Queryx(s)
 		if err != nil {
-			log.Error(err)
-			return nil
+			panic(err)
+			return
 		}
 
 		var keywordInfos []KeywordInfo
@@ -116,14 +116,14 @@ func main() {
 			x := KeywordInfo{}
 			err := rows.StructScan(&x)
 			if err != nil {
-				log.Error(err)
-				return nil
+				panic(err)
+				return
 			}
 			keywordInfos = append(keywordInfos, x)
 		}
 
 		if len(keywordInfos) == 0 {
-			return nil
+			return
 		}
 		log.Println(keywordInfos)
 
@@ -133,8 +133,9 @@ func main() {
 			reply = reply + fmt.Sprintf(template, index+1, xunsu.Nickname, xunsu.UserId, xunsu.Count) + "\r\n"
 		}
 
-		return &cqbot.GroupReplyMessage{
-			Reply: reply,
+		err = cqbot.SendMessage(reply, *m.GroupId)
+		if err != nil {
+			panic(err)
 		}
 	})
 

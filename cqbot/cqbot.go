@@ -1,10 +1,13 @@
 package cqbot
 
 import (
+	"bytes"
 	"encoding/json"
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"log"
+	"net/http"
 )
 
 func Run(addr string) {
@@ -31,7 +34,7 @@ type PrivateMessageHandler func(message *PrivateMessage)
 
 var privateMessageHandlers []PrivateMessageHandler
 
-type GroupMessageHandler func(message *GroupMessage) *GroupReplyMessage
+type GroupMessageHandler func(message *GroupMessage)
 
 var groupMessageHandlers []GroupMessageHandler
 
@@ -74,7 +77,7 @@ func dispatchMsg(c *gin.Context) (interface{}, error) {
 			err = handlePrivateMessage(bodyBytes)
 		}
 		if messagePostType.MessageType == group {
-			reply, err = handleGroupMessage(bodyBytes)
+			err = handleGroupMessage(bodyBytes)
 		}
 		if messagePostType.MessageType == discuss {
 			err = handleDiscussMessage(bodyBytes)
@@ -105,20 +108,19 @@ func handleDiscussMessage(bytes []byte) error {
 	return nil
 }
 
-func handleGroupMessage(bytes []byte) (*GroupReplyMessage, error) {
+func handleGroupMessage(bytes []byte) error {
 	message := GroupMessage{}
 	err := json.Unmarshal(bytes, &message)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	log.Printf("[%s] %s(%d) say: %s", *message.MessageType, *message.Sender.Nickname, message.UserId, *message.Message)
 
-	var reply *GroupReplyMessage
 	for _, handler := range groupMessageHandlers {
-		reply = handler(&message)
+		handler(&message)
 	}
-	return reply, nil
+	return nil
 }
 
 func handlePrivateMessage(bytes []byte) error {
@@ -133,5 +135,29 @@ func handlePrivateMessage(bytes []byte) error {
 	for _, handler := range privateMessageHandlers {
 		handler(&message)
 	}
+	return nil
+}
+
+func SendMessage(message string, groupId int64) error {
+	groupMessageUrl := "http://127.0.0.1:5701/send_group_msg"
+	m := map[string]interface{}{
+		"message":     message,
+		"group_id":    groupId,
+		"auto_escape": false,
+	}
+
+	jsonStr, err := json.Marshal(m)
+	if err != nil {
+		return err
+	}
+
+	resp, err := http.Post(groupMessageUrl, "application/json", bytes.NewBuffer(jsonStr))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	body, _ := ioutil.ReadAll(resp.Body)
+	logrus.Info("api response Body:", string(body))
 	return nil
 }
