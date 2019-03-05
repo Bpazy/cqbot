@@ -15,13 +15,15 @@ import (
 )
 
 var (
-	port *string
-	db   *sqlx.DB
+	port        *string
+	db          *sqlx.DB
+	cqbotClient *cqbot.Client
 )
 
 func init() {
 	port = flag.String("port", "12345", "port")
 	dataSourceName := flag.String("dns", "", "Data source name. [username[:password]@][protocol[(address)]]/dbname")
+	httpApiAddr := flag.String("haa", "http://127.0.0.1:5700", "Http API address")
 	flag.Parse()
 
 	db2, err := sqlx.Open("mysql", *dataSourceName+"?charset=utf8mb4&parseTime=True&loc=Local")
@@ -29,10 +31,12 @@ func init() {
 		panic(err)
 	}
 	db = db2
+
+	cqbotClient = cqbot.NewClient(*httpApiAddr)
 }
 
 func main() {
-	cqbot.AddPrivateMessageHandler(func(m *cqbot.PrivateMessage) {
+	cqbotClient.AddPrivateMessageHandler(func(m *cqbot.PrivateMessage) {
 		m.PkId = id.PId()
 		if m.Sender != nil {
 			senderId := id.PId()
@@ -48,7 +52,7 @@ func main() {
 		}
 	})
 
-	cqbot.AddGroupMessageHandler(func(m *cqbot.GroupMessage) {
+	cqbotClient.AddGroupMessageHandler(func(m *cqbot.GroupMessage) {
 		m.PkId = id.PId()
 		if m.Sender != nil {
 			senderId := id.PId()
@@ -76,7 +80,7 @@ func main() {
 		return
 	})
 
-	cqbot.AddGroupMessageHandler(func(m *cqbot.GroupMessage) {
+	cqbotClient.AddGroupMessageHandler(func(m *cqbot.GroupMessage) {
 		if m.Message == nil {
 			return
 		}
@@ -133,22 +137,22 @@ func main() {
 			reply = reply + fmt.Sprintf(template, index+1, xunsu.Nickname, xunsu.UserId, xunsu.Count) + "\r\n"
 		}
 
-		cqbot.SendMessage(reply, *m.GroupId)
+		cqbotClient.SendMessage(reply, *m.GroupId)
 	})
 
-	cqbot.AddGroupMessageInterceptor(func(m *cqbot.GroupMessage) bool {
+	cqbotClient.AddGroupMessageInterceptor(func(m *cqbot.GroupMessage) bool {
 		if !strings.Contains(*m.Message, "炮粉") {
 			return false
 		}
 		requestLimitKey := fmt.Sprintf("cqbot:request:limit:%s:%s", strconv.FormatInt(*m.UserId, 10), *m.Message)
 		boolCmd := RedisClient.SetNX(requestLimitKey, 1, 5*time.Second)
 		if !boolCmd.Val() {
-			cqbot.SendMessage("老是喊你爸鸽抹的？泌阳东西子", *m.GroupId)
+			cqbotClient.SendMessage("老是喊你爸鸽抹的？泌阳东西子", *m.GroupId)
 			return true
 		}
 
 		return false
 	})
 
-	cqbot.Run("0.0.0.0:" + *port)
+	cqbotClient.Run("0.0.0.0:" + *port)
 }

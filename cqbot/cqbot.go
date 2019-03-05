@@ -9,11 +9,49 @@ import (
 	"net/http"
 )
 
-func Run(addr string) {
+type Config struct {
+	HttpApiAddr string
+}
+
+type Client struct {
+	Config
+	// 私聊消息处理器
+	privateMessageHandlers []PrivateMessageHandler
+	// 群聊消息处理器
+	groupMessageHandlers []GroupMessageHandler
+	// 讨论组消息处理器
+	discussMessageHandlers []DiscussMessageHandler
+	// 群消息拦截器
+	groupMessageInterceptors []GroupMessageInterceptor
+}
+
+func NewClient(httpApiAddr string) *Client {
+	return &Client{
+		Config: Config{HttpApiAddr: httpApiAddr},
+	}
+}
+
+func (client *Client) AddPrivateMessageHandler(handler PrivateMessageHandler) {
+	client.privateMessageHandlers = append(client.privateMessageHandlers, handler)
+}
+
+func (client *Client) AddGroupMessageHandler(handler GroupMessageHandler) {
+	client.groupMessageHandlers = append(client.groupMessageHandlers, handler)
+}
+
+func (client *Client) AddDiscussMessageHandler(handler DiscussMessageHandler) {
+	client.discussMessageHandlers = append(client.discussMessageHandlers, handler)
+}
+
+func (client *Client) AddGroupMessageInterceptor(interceptor GroupMessageInterceptor) {
+	client.groupMessageInterceptors = append(client.groupMessageInterceptors, interceptor)
+}
+
+func (client *Client) Run(addr string) {
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.POST("/", func(c *gin.Context) {
-		reply, err := dispatchMsg(c)
+		reply, err := client.dispatchMsg(c)
 		if err != nil {
 			panic(err)
 		}
@@ -31,36 +69,13 @@ const (
 
 type PrivateMessageHandler func(message *PrivateMessage)
 
-var privateMessageHandlers []PrivateMessageHandler
-
 type GroupMessageHandler func(message *GroupMessage)
-
-var groupMessageHandlers []GroupMessageHandler
 
 type DiscussMessageHandler func(message *DiscussMessage)
 
-var discussMessageHandlers []DiscussMessageHandler
-
-func AddPrivateMessageHandler(handler PrivateMessageHandler) {
-	privateMessageHandlers = append(privateMessageHandlers, handler)
-}
-func AddGroupMessageHandler(handler GroupMessageHandler) {
-	groupMessageHandlers = append(groupMessageHandlers, handler)
-}
-func AddDiscussMessageHandler(handler DiscussMessageHandler) {
-	discussMessageHandlers = append(discussMessageHandlers, handler)
-}
-
-// return true if stop pass
 type GroupMessageInterceptor func(message *GroupMessage) bool
 
-var groupMessageInterceptors []GroupMessageInterceptor
-
-func AddGroupMessageInterceptor(interceptor GroupMessageInterceptor) {
-	groupMessageInterceptors = append(groupMessageInterceptors, interceptor)
-}
-
-func dispatchMsg(c *gin.Context) (interface{}, error) {
+func (client *Client) dispatchMsg(c *gin.Context) (interface{}, error) {
 	bodyBytes, err := ioutil.ReadAll(c.Request.Body)
 	if err != nil {
 		return nil, err
@@ -82,13 +97,13 @@ func dispatchMsg(c *gin.Context) (interface{}, error) {
 		}
 
 		if messagePostType.MessageType == private {
-			err = handlePrivateMessage(bodyBytes)
+			err = client.handlePrivateMessage(bodyBytes)
 		}
 		if messagePostType.MessageType == group {
-			err = handleGroupMessage(bodyBytes)
+			err = client.handleGroupMessage(bodyBytes)
 		}
 		if messagePostType.MessageType == discuss {
-			err = handleDiscussMessage(bodyBytes)
+			err = client.handleDiscussMessage(bodyBytes)
 		}
 	} else {
 		log.Printf("%s: %s", postType.PostType, string(bodyBytes))
@@ -101,7 +116,7 @@ func dispatchMsg(c *gin.Context) (interface{}, error) {
 	return reply, nil
 }
 
-func handleDiscussMessage(bytes []byte) error {
+func (client *Client) handleDiscussMessage(bytes []byte) error {
 	message := DiscussMessage{}
 	err := json.Unmarshal(bytes, &message)
 	if err != nil {
@@ -110,13 +125,13 @@ func handleDiscussMessage(bytes []byte) error {
 
 	log.Printf("[%s] %s(%d) say: %s", message.MessageType, message.Sender.Nickname, message.UserId, message.Message)
 
-	for _, handler := range discussMessageHandlers {
+	for _, handler := range client.discussMessageHandlers {
 		handler(&message)
 	}
 	return nil
 }
 
-func handleGroupMessage(bytes []byte) error {
+func (client *Client) handleGroupMessage(bytes []byte) error {
 	message := GroupMessage{}
 	err := json.Unmarshal(bytes, &message)
 	if err != nil {
@@ -126,7 +141,7 @@ func handleGroupMessage(bytes []byte) error {
 	log.Printf("[%s] %s(%d) say: %s", *message.MessageType, *message.Sender.Nickname, message.UserId, *message.Message)
 
 	// execute interceptor
-	for _, interceptor := range groupMessageInterceptors {
+	for _, interceptor := range client.groupMessageInterceptors {
 		pass := interceptor(&message)
 		if pass {
 			break
@@ -134,13 +149,13 @@ func handleGroupMessage(bytes []byte) error {
 	}
 
 	// message handler
-	for _, handler := range groupMessageHandlers {
+	for _, handler := range client.groupMessageHandlers {
 		handler(&message)
 	}
 	return nil
 }
 
-func handlePrivateMessage(bytes []byte) error {
+func (client *Client) handlePrivateMessage(bytes []byte) error {
 	message := PrivateMessage{}
 	err := json.Unmarshal(bytes, &message)
 	if err != nil {
@@ -149,14 +164,14 @@ func handlePrivateMessage(bytes []byte) error {
 
 	log.Printf("[%s] %s(%d) say: %s", *message.MessageType, *message.Sender.Nickname, message.UserId, *message.Message)
 
-	for _, handler := range privateMessageHandlers {
+	for _, handler := range client.privateMessageHandlers {
 		handler(&message)
 	}
 	return nil
 }
 
-func SendMessage(message string, groupId int64) {
-	groupMessageUrl := "http://127.0.0.1:5701/send_group_msg"
+func (client *Client) SendMessage(message string, groupId int64) {
+	groupMessageUrl := client.HttpApiAddr + "/send_group_msg"
 	m := map[string]interface{}{
 		"message":     message,
 		"group_id":    groupId,
