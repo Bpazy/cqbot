@@ -144,7 +144,7 @@ func (client *Client) handleGroupMessage(bytes []byte) error {
 	for _, interceptor := range client.groupMessageInterceptors {
 		pass := interceptor(&message)
 		if pass {
-			break
+			return nil
 		}
 	}
 
