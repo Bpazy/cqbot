@@ -9,7 +9,9 @@ import (
 	"github.com/jmoiron/sqlx"
 	"log"
 	"regexp"
+	"strconv"
 	"strings"
+	"time"
 )
 
 var (
@@ -131,10 +133,21 @@ func main() {
 			reply = reply + fmt.Sprintf(template, index+1, xunsu.Nickname, xunsu.UserId, xunsu.Count) + "\r\n"
 		}
 
-		err = cqbot.SendMessage(reply, *m.GroupId)
-		if err != nil {
-			panic(err)
+		cqbot.SendMessage(reply, *m.GroupId)
+	})
+
+	cqbot.AddGroupMessageInterceptor(func(m *cqbot.GroupMessage) bool {
+		if !strings.Contains(*m.Message, "炮粉") {
+			return false
 		}
+		requestLimitKey := fmt.Sprintf("cqbot:request:limit:%s:%s", strconv.FormatInt(*m.UserId, 10), *m.Message)
+		boolCmd := RedisClient.SetNX(requestLimitKey, 1, 5*time.Second)
+		if !boolCmd.Val() {
+			cqbot.SendMessage("老是喊你爸鸽抹的？泌阳东西子", *m.GroupId)
+			return true
+		}
+
+		return false
 	})
 
 	cqbot.Run("0.0.0.0:" + *port)

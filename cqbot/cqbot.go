@@ -51,6 +51,15 @@ func AddDiscussMessageHandler(handler DiscussMessageHandler) {
 	discussMessageHandlers = append(discussMessageHandlers, handler)
 }
 
+// return true if stop pass
+type GroupMessageInterceptor func(message *GroupMessage) bool
+
+var groupMessageInterceptors []GroupMessageInterceptor
+
+func AddGroupMessageInterceptor(interceptor GroupMessageInterceptor) {
+	groupMessageInterceptors = append(groupMessageInterceptors, interceptor)
+}
+
 func dispatchMsg(c *gin.Context) (interface{}, error) {
 	bodyBytes, err := ioutil.ReadAll(c.Request.Body)
 	if err != nil {
@@ -116,6 +125,15 @@ func handleGroupMessage(bytes []byte) error {
 
 	log.Printf("[%s] %s(%d) say: %s", *message.MessageType, *message.Sender.Nickname, message.UserId, *message.Message)
 
+	// execute interceptor
+	for _, interceptor := range groupMessageInterceptors {
+		pass := interceptor(&message)
+		if pass {
+			break
+		}
+	}
+
+	// message handler
 	for _, handler := range groupMessageHandlers {
 		handler(&message)
 	}
@@ -137,7 +155,7 @@ func handlePrivateMessage(bytes []byte) error {
 	return nil
 }
 
-func SendMessage(message string, groupId int64) error {
+func SendMessage(message string, groupId int64) {
 	groupMessageUrl := "http://127.0.0.1:5701/send_group_msg"
 	m := map[string]interface{}{
 		"message":     message,
@@ -147,16 +165,15 @@ func SendMessage(message string, groupId int64) error {
 
 	jsonStr, err := json.Marshal(m)
 	if err != nil {
-		return err
+		panic(err)
 	}
 
 	resp, err := http.Post(groupMessageUrl, "application/json", bytes.NewBuffer(jsonStr))
 	if err != nil {
-		return err
+		panic(err)
 	}
 	defer resp.Body.Close()
 
 	body, _ := ioutil.ReadAll(resp.Body)
 	log.Println("api response Body:", string(body))
-	return nil
 }
