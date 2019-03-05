@@ -7,7 +7,7 @@ import (
 	"github.com/Bpazy/cqbot/id"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
-	log "github.com/sirupsen/logrus"
+	"log"
 	"regexp"
 	"strings"
 )
@@ -21,8 +21,6 @@ func init() {
 	port = flag.String("port", "12345", "port")
 	dataSourceName := flag.String("dns", "", "Data source name. [username[:password]@][protocol[(address)]]/dbname")
 	flag.Parse()
-
-	log.SetFormatter(&log.TextFormatter{})
 
 	db2, err := sqlx.Open("mysql", *dataSourceName+"?charset=utf8mb4&parseTime=True&loc=Local")
 	if err != nil {

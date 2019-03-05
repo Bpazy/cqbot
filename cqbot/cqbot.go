@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -158,6 +157,6 @@ func SendMessage(message string, groupId int64) error {
 	defer resp.Body.Close()
 
 	body, _ := ioutil.ReadAll(resp.Body)
-	logrus.Info("api response Body:", string(body))
+	log.Println("api response Body:", string(body))
 	return nil
 }
