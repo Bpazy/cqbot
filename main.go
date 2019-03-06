@@ -72,7 +72,6 @@ func main() {
 		}
 		keyword := keywords[1]
 
-		// TODO group_id
 		s := `select 
                 distinct a.user_id as user_id,
                 a.nickname as nickname,
@@ -85,12 +84,14 @@ func main() {
                 from cqbot_group_message_sender a
                 join cqbot_group_message b on a.pk_id = b.sender_id
                 where b.message = '{keyword}'
+				and b.group_id = {groupId}
                 and b.create_time >= date_sub(curdate(),interval 7 day)
                 group by a.user_id
 			  ) b on a.user_id = b.user_id
 			  order by b.num desc
               limit 5`
 		s = strings.Replace(s, "{keyword}", keyword, -1)
+		s = strings.Replace(s, "{groupId", strconv.FormatInt(*m.GroupId, 10), -1)
 		rows, err := db.Queryx(s)
 		if err != nil {
 			panic(err)
