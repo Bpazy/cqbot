@@ -138,7 +138,7 @@ func main() {
 		if len(keywordInfos) == 0 {
 			return
 		}
-		log.Println(keywordInfos)
+		log.Println("keywordInfos: ", keywordInfos)
 
 		reply := "七日" + keyword + "榜！\r\n"
 		template := "No.%d(%s[%s])%d次"
@@ -156,6 +156,7 @@ func main() {
 		requestLimitKey := fmt.Sprintf("cqbot:request:limit:%s:%s", strconv.FormatInt(*m.UserId, 10), *m.Message)
 		boolCmd := redisClient.SetNX(requestLimitKey, 1, 5*time.Second)
 		if !boolCmd.Val() {
+			log.Println("redis boolCmd: ", boolCmd)
 			cqbotClient.SendMessage("老是喊你爸鸽抹的？泌阳东西子", *m.GroupId)
 			return true
 		}
