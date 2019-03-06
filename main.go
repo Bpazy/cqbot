@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/Bpazy/cqbot/cqbot"
 	"github.com/Bpazy/cqbot/id"
+	"github.com/go-redis/redis"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"log"
@@ -18,12 +19,14 @@ var (
 	port        *string
 	db          *sqlx.DB
 	cqbotClient *cqbot.Client
+	redisClient *redis.Client
 )
 
 func init() {
-	port = flag.String("port", "12345", "port")
+	port = flag.String("port", "12345", "Port")
 	dataSourceName := flag.String("dns", "", "Data source name. [username[:password]@][protocol[(address)]]/dbname")
 	httpApiAddr := flag.String("haa", "http://127.0.0.1:5700", "Http API address")
+	redisAddr := flag.String("redis", "127.0.0.1:6379", "Redis address")
 	flag.Parse()
 
 	db2, err := sqlx.Open("mysql", *dataSourceName+"?charset=utf8mb4&parseTime=True&loc=Local")
@@ -33,6 +36,11 @@ func init() {
 	db = db2
 
 	cqbotClient = cqbot.NewClient(*httpApiAddr)
+	redisClient = redis.NewClient(&redis.Options{
+		Addr:     *redisAddr,
+		Password: "",
+		DB:       0,
+	})
 }
 
 func main() {
@@ -91,6 +99,7 @@ func main() {
 		}
 		keyword := keywords[1]
 
+		// TODO group_id
 		s := `select 
                 distinct a.user_id as user_id,
                 a.nickname as nickname,
@@ -145,7 +154,7 @@ func main() {
 			return false
 		}
 		requestLimitKey := fmt.Sprintf("cqbot:request:limit:%s:%s", strconv.FormatInt(*m.UserId, 10), *m.Message)
-		boolCmd := RedisClient.SetNX(requestLimitKey, 1, 5*time.Second)
+		boolCmd := redisClient.SetNX(requestLimitKey, 1, 5*time.Second)
 		if !boolCmd.Val() {
 			cqbotClient.SendMessage("老是喊你爸鸽抹的？泌阳东西子", *m.GroupId)
 			return true
