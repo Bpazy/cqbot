@@ -33,9 +33,13 @@ Make sure you have added `coolqhttpapi general.json` under `data\app\io.github.r
 ```
 4. Start wine-coolq.
 ```shell
-$ sudo docker run --name=coolq --rm -p 9000:9000 --network=coolq-net -v /home/han/coolq-data:/home/user/coolq -e VNC_PASSWD=your_vnc_password -e COOLQ_ACCOUNT=your_qq_number coolq/wine-coolq
+$ sudo docker run --name=coolq --rm -d -p 9000:9000 --network=coolq-net -v /home/han/coolq-data:/home/user/coolq -e VNC_PASSWD=your_vnc_password -e COOLQ_ACCOUNT=your_qq_number coolq/wine-coolq
 ```
-5. Start cqbot.
+5. Start Redis.
 ```shell
-$ sudo docker run --name cqbot --rm --network coolq-net hanziyuan08/cqbot -dns "user:password@tcp(localhost)/db_name"
+$ sudo docker run --name redis --rm -d --network coolq-net redis
+```
+6. Start cqbot.
+```shell
+$ sudo docker run --name cqbot --rm -d --network coolq-net hanziyuan08/cqbot -dns "user:password@tcp(localhost)/db_name" -redis "redis:6379"
 ```
