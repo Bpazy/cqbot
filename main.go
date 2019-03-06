@@ -157,7 +157,11 @@ func main() {
 		boolCmd := redisClient.SetNX(requestLimitKey, 1, 5*time.Second)
 		if !boolCmd.Val() {
 			log.Println("redis boolCmd: ", boolCmd)
-			cqbotClient.SendMessage("老是喊你爸鸽抹的？泌阳东西子", *m.GroupId)
+			content, err := findMessagePhrase("repeat")
+			if err != nil {
+				panic(err)
+			}
+			cqbotClient.SendMessage(content, *m.GroupId)
 			return true
 		}
 
@@ -165,4 +169,10 @@ func main() {
 	})
 
 	cqbotClient.Run("0.0.0.0:" + *port)
+}
+
+func findMessagePhrase(t string) (content string, err error) {
+	row := db.QueryRow("select content from cqbot_message_phrase where type = ? order by rand() limit 1", t)
+	err = row.Scan(&content)
+	return
 }
