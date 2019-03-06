@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"github.com/Bpazy/cqbot/cqbot"
@@ -157,7 +158,7 @@ func main() {
 		boolCmd := redisClient.SetNX(requestLimitKey, 1, 5*time.Second)
 		if !boolCmd.Val() {
 			log.Println("redis boolCmd: ", boolCmd)
-			content, err := findMessagePhrase("repeat")
+			content, err := findRandomMessagePhrase("repeat")
 			if err != nil {
 				panic(err)
 			}
@@ -179,18 +180,50 @@ func main() {
 			return
 		}
 		at := keywords[1]
-		words, err := findMessagePhrase("fuck")
+		words, err := findRandomMessagePhrase("fuck")
 		if err != nil {
 			panic(err)
 		}
 		cqbotClient.SendMessage(words+at, *m.GroupId)
 	})
 
+	cqbotClient.AddGroupMessageHandler(func(m *cqbot.GroupMessage) {
+		if !strings.Contains(*m.Message, "炮粉") {
+			return
+		}
+
+		r := regexp.MustCompile("set fuck (.+)")
+		keywords := r.FindStringSubmatch(*m.Message)
+		if len(keywords) < 2 {
+			return
+		}
+		words := keywords[1]
+		err := saveMessagePhrase("fuck", words)
+		if err != nil {
+			log.Println(err)
+			cqbotClient.SendMessage("Set failed 并不能阻止我甘玲娘", *m.GroupId)
+			return
+		}
+		cqbotClient.SendMessage("Set success", *m.GroupId)
+	})
+
 	cqbotClient.Run("0.0.0.0:" + *port)
 }
 
-func findMessagePhrase(t string) (content string, err error) {
+func findRandomMessagePhrase(t string) (content string, err error) {
 	row := db.QueryRow("select content from cqbot_message_phrase where type = ? order by rand() limit 1", t)
 	err = row.Scan(&content)
 	return
+}
+
+func saveMessagePhrase(t, words string) error {
+	row := db.QueryRow("select content from cqbot_message_phrase where content = ?", words)
+	var content string
+	err := row.Scan(&content)
+	if err == nil || content != "" {
+		return errors.New("words already exists")
+	}
+
+	_, err = db.Exec("insert into cqbot_message_phrase (pk_id, type, content) values (?, ?,?)", id.Id(), t, words)
+	return err
 }
