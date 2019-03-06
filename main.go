@@ -168,6 +168,24 @@ func main() {
 		return false
 	})
 
+	cqbotClient.AddGroupMessageHandler(func(m *cqbot.GroupMessage) {
+		if !strings.Contains(*m.Message, "炮粉") {
+			return
+		}
+
+		r := regexp.MustCompile("炮粉给我骂(\\[CQ:at,qq=.+?])")
+		keywords := r.FindStringSubmatch(*m.Message)
+		if len(keywords) < 2 {
+			return
+		}
+		at := keywords[1]
+		words, err := findMessagePhrase("fuck")
+		if err != nil {
+			panic(err)
+		}
+		cqbotClient.SendMessage(words+at, *m.GroupId)
+	})
+
 	cqbotClient.Run("0.0.0.0:" + *port)
 }
 
