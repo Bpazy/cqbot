@@ -91,7 +91,7 @@ func main() {
 			  order by b.num desc
               limit 5`
 		s = strings.Replace(s, "{keyword}", keyword, -1)
-		s = strings.Replace(s, "{groupId", strconv.FormatInt(*m.GroupId, 10), -1)
+		s = strings.Replace(s, "{groupId}", strconv.FormatInt(*m.GroupId, 10), -1)
 		rows, err := db.Queryx(s)
 		if err != nil {
 			panic(err)
