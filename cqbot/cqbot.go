@@ -15,15 +15,16 @@ type Config struct {
 
 type Client struct {
 	Config
-	LoginInfo *LoginInfo
-	// 私聊消息处理器
+	LoginInfo *LoginInfo // 当前登陆人信息
+
+	// 消息处理器
 	privateMessageHandlers []PrivateMessageHandler
-	// 群聊消息处理器
-	groupMessageHandlers []GroupMessageHandler
-	// 讨论组消息处理器
+	groupMessageHandlers   []GroupMessageHandler
 	discussMessageHandlers []DiscussMessageHandler
-	// 群消息拦截器
-	groupMessageInterceptors []GroupMessageInterceptor
+
+	// 消息拦截器
+	groupMessageInterceptors   []GroupMessageInterceptor
+	privateMessageInterceptors []PrivateMessageInterceptor
 }
 
 func NewClient(httpApiAddr string) *Client {
@@ -46,6 +47,10 @@ func (client *Client) AddDiscussMessageHandler(handler DiscussMessageHandler) {
 
 func (client *Client) AddGroupMessageInterceptor(interceptor GroupMessageInterceptor) {
 	client.groupMessageInterceptors = append(client.groupMessageInterceptors, interceptor)
+}
+
+func (client *Client) AddPrivateMessageInterceptor(interceptor PrivateMessageInterceptor) {
+	client.privateMessageInterceptors = append(client.privateMessageInterceptors, interceptor)
 }
 
 func (client *Client) Run(addr string) {
@@ -81,6 +86,8 @@ type GroupMessageHandler func(context *GroupContext)
 type DiscussMessageHandler func(message *DiscussMessage)
 
 type GroupMessageInterceptor func(message *GroupMessage) bool
+
+type PrivateMessageInterceptor func(message *PrivateMessage) bool
 
 func (client *Client) dispatchMsg(c *gin.Context) (interface{}, error) {
 	bodyBytes, err := ioutil.ReadAll(c.Request.Body)

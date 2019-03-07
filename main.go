@@ -42,10 +42,14 @@ func init() {
 		Password: "",
 		DB:       0,
 	})
+	statusCmd := redisClient.Ping()
+	if statusCmd.Err() != nil {
+		panic(statusCmd.Err())
+	}
 }
 
 func main() {
-	cqbotClient.AddPrivateMessageHandler(func(m *cqbot.PrivateMessage) {
+	cqbotClient.AddPrivateMessageInterceptor(func(m *cqbot.PrivateMessage) bool {
 		m.PkId = id.PId()
 		if m.Sender != nil {
 			senderId := id.PId()
@@ -59,6 +63,7 @@ func main() {
 			db.MustExec("insert into cqbot_private_message_sender (pk_id, user_id, nickname, sex, age) values (?,?,?,?,?)",
 				m.SenderId, m.UserId, m.Sender.Nickname, m.Sender.Sex, m.Sender.Age)
 		}
+		return false
 	})
 
 	cqbotClient.AddGroupMessageHandler(func(c *cqbot.GroupContext) {
@@ -176,46 +181,96 @@ func main() {
 			return
 		}
 
-		r := regexp.MustCompile("炮粉给我骂(\\[CQ:at,qq=(.+?)])")
+		r := regexp.MustCompile("炮粉给我干死(.+)")
 		keywords := r.FindStringSubmatch(*c.Message.Message)
 		if len(keywords) < 2 {
 			return
 		}
-		at := keywords[1]
-		atUserId := keywords[2]
+		atUserId, err := findAliasUserId(keywords[1])
+		if err != nil {
+			log.Println("find alias error: ", err)
+			cqbotClient.SendMessage("少你妈火，没设置alias干死尼玛干死", *c.Message.GroupId)
+			return
+		}
 		if atUserId == strconv.FormatInt(c.LoginInfo.UserId, 10) {
 			cqbotClient.SendMessage("你傻逼还是我傻逼？", *c.Message.GroupId)
 			return
 		}
 
-		words, err := findRandomMessagePhrase("fuck")
-		if err != nil {
-			panic(err)
+		for i := 0; i < 5; i++ {
+			words, err := findRandomMessagePhrase("fuck")
+			if err != nil {
+				panic(err)
+			}
+			cqbotClient.SendMessage(words+buildAt(atUserId), *c.Message.GroupId)
+			time.Sleep(2 * time.Second)
 		}
-		cqbotClient.SendMessage(words+at, *c.Message.GroupId)
 	})
 
 	cqbotClient.AddGroupMessageHandler(func(c *cqbot.GroupContext) {
-		if !strings.Contains(*c.Message.Message, "炮粉") {
+		r := regexp.MustCompile("set (?P<cmd>.+?) (?P<content>.+)")
+		submatch := r.FindStringSubmatch(*c.Message.Message)
+		cmdMap := make(map[string]string)
+
+		if len(submatch) == len(r.SubexpNames()) {
+			// TODO 提取工具包
+			for i, name := range r.SubexpNames() {
+				if i != 0 && name != "" {
+					cmdMap[name] = submatch[i]
+				}
+			}
+		}
+
+		cmd := cmdMap["cmd"]
+		content := cmdMap["content"]
+		if content == "" {
 			return
 		}
 
-		r := regexp.MustCompile("set fuck (.+)")
-		keywords := r.FindStringSubmatch(*c.Message.Message)
-		if len(keywords) < 2 {
-			return
+		if cmd == "fuck" {
+			err := saveMessagePhrase("fuck", content)
+			if err != nil {
+				log.Println(err)
+				cqbotClient.SendMessage("Set failed 并不能阻止我甘玲娘", *c.Message.GroupId)
+				return
+			}
 		}
-		words := keywords[1]
-		err := saveMessagePhrase("fuck", words)
-		if err != nil {
-			log.Println(err)
-			cqbotClient.SendMessage("Set failed 并不能阻止我甘玲娘", *c.Message.GroupId)
-			return
+
+		if cmd == "alias" {
+			// set alias 123456789 赵炮
+			split := strings.Split(content, " ")
+			if len(split) != 2 {
+				cqbotClient.SendMessage("Please use [set alias 123456789 customAlias]", *c.Message.GroupId)
+				return
+			}
+			savedAlias, err := saveAlias(split[0], split[1])
+			if err != nil {
+				log.Println(err)
+				cqbotClient.SendMessage(fmt.Sprintf("尼玛之前就设置别名是%s了", savedAlias), *c.Message.GroupId)
+				return
+			}
 		}
 		cqbotClient.SendMessage("Set success", *c.Message.GroupId)
 	})
 
 	cqbotClient.Run("0.0.0.0:" + *port)
+}
+
+func saveAlias(userId, alias string) (savedAlias string, err error) {
+	row := db.QueryRow("select alias from cqbot_alias where user_id = ?", userId)
+	err = row.Scan(&savedAlias)
+	if err == nil || savedAlias != "" {
+		return savedAlias, errors.New("alias already exists: " + savedAlias)
+	}
+
+	_, err = db.Exec("insert into cqbot_alias (pk_id, alias, user_id) values (?, ?,?)", id.Id(), alias, userId)
+	return
+}
+
+func findAliasUserId(alias string) (savedAlias string, err error) {
+	row := db.QueryRow("select user_id from cqbot_alias where alias = ?", alias)
+	err = row.Scan(&savedAlias)
+	return
 }
 
 func findRandomMessagePhrase(t string) (content string, err error) {
@@ -234,4 +289,8 @@ func saveMessagePhrase(t, words string) error {
 
 	_, err = db.Exec("insert into cqbot_message_phrase (pk_id, type, content) values (?, ?,?)", id.Id(), t, words)
 	return err
+}
+
+func buildAt(userId string) string {
+	return fmt.Sprintf("[CQ:at,qq=%s]", userId)
 }
