@@ -107,3 +107,13 @@ type DiscussMessage struct {
 	Sender      *DiscussMessageSender `json:"sender" gorm:"foreignkey:SenderId;association_foreignkey:CID"`
 	SenderId    string
 }
+
+type Result struct {
+	Status  string `json:"status"`
+	RetCode int    `json:"ret_code"`
+}
+
+type LoginInfo struct {
+	UserId   int64  `json:"user_id"`
+	Nickname string `json:"nickname"`
+}

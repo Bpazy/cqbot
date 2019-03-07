@@ -61,12 +61,12 @@ func main() {
 		}
 	})
 
-	cqbotClient.AddGroupMessageHandler(func(m *cqbot.GroupMessage) {
-		if m.Message == nil {
+	cqbotClient.AddGroupMessageHandler(func(c *cqbot.GroupContext) {
+		if c.Message == nil {
 			return
 		}
 		r := regexp.MustCompile("炮粉通报一下七日内【(.+)】榜")
-		keywords := r.FindStringSubmatch(*m.Message)
+		keywords := r.FindStringSubmatch(*c.Message.Message)
 		if len(keywords) < 2 {
 			return
 		}
@@ -91,7 +91,7 @@ func main() {
 			  order by b.num desc
               limit 5`
 		s = strings.Replace(s, "{keyword}", keyword, -1)
-		s = strings.Replace(s, "{groupId}", strconv.FormatInt(*m.GroupId, 10), -1)
+		s = strings.Replace(s, "{groupId}", strconv.FormatInt(*c.Message.GroupId, 10), -1)
 		rows, err := db.Queryx(s)
 		if err != nil {
 			panic(err)
@@ -120,7 +120,7 @@ func main() {
 			reply = reply + fmt.Sprintf(template, index+1, xunsu.Nickname, xunsu.UserId, xunsu.Count) + "\r\n"
 		}
 
-		cqbotClient.SendMessage(reply, *m.GroupId)
+		cqbotClient.SendMessage(reply, *c.Message.GroupId)
 	})
 
 	cqbotClient.AddGroupMessageInterceptor(func(m *cqbot.GroupMessage) bool {
@@ -170,31 +170,37 @@ func main() {
 		return false
 	})
 
-	cqbotClient.AddGroupMessageHandler(func(m *cqbot.GroupMessage) {
-		if !strings.Contains(*m.Message, "炮粉") {
+	cqbotClient.AddGroupMessageHandler(func(c *cqbot.GroupContext) {
+		if !strings.Contains(*c.Message.Message, "炮粉") {
 			return
 		}
 
-		r := regexp.MustCompile("炮粉给我骂(\\[CQ:at,qq=.+?])")
-		keywords := r.FindStringSubmatch(*m.Message)
+		r := regexp.MustCompile("炮粉给我骂(\\[CQ:at,qq=(.+?)])")
+		keywords := r.FindStringSubmatch(*c.Message.Message)
 		if len(keywords) < 2 {
 			return
 		}
 		at := keywords[1]
+		atUserId := keywords[2]
+		if atUserId == strconv.FormatInt(c.LoginInfo.UserId, 10) {
+			cqbotClient.SendMessage("你傻逼还是我傻逼？", *c.Message.GroupId)
+			return
+		}
+
 		words, err := findRandomMessagePhrase("fuck")
 		if err != nil {
 			panic(err)
 		}
-		cqbotClient.SendMessage(words+at, *m.GroupId)
+		cqbotClient.SendMessage(words+at, *c.Message.GroupId)
 	})
 
-	cqbotClient.AddGroupMessageHandler(func(m *cqbot.GroupMessage) {
-		if !strings.Contains(*m.Message, "炮粉") {
+	cqbotClient.AddGroupMessageHandler(func(c *cqbot.GroupContext) {
+		if !strings.Contains(*c.Message.Message, "炮粉") {
 			return
 		}
 
 		r := regexp.MustCompile("set fuck (.+)")
-		keywords := r.FindStringSubmatch(*m.Message)
+		keywords := r.FindStringSubmatch(*c.Message.Message)
 		if len(keywords) < 2 {
 			return
 		}
@@ -202,10 +208,10 @@ func main() {
 		err := saveMessagePhrase("fuck", words)
 		if err != nil {
 			log.Println(err)
-			cqbotClient.SendMessage("Set failed 并不能阻止我甘玲娘", *m.GroupId)
+			cqbotClient.SendMessage("Set failed 并不能阻止我甘玲娘", *c.Message.GroupId)
 			return
 		}
-		cqbotClient.SendMessage("Set success", *m.GroupId)
+		cqbotClient.SendMessage("Set success", *c.Message.GroupId)
 	})
 
 	cqbotClient.Run("0.0.0.0:" + *port)

@@ -15,6 +15,7 @@ type Config struct {
 
 type Client struct {
 	Config
+	LoginInfo *LoginInfo
 	// 私聊消息处理器
 	privateMessageHandlers []PrivateMessageHandler
 	// 群聊消息处理器
@@ -48,6 +49,7 @@ func (client *Client) AddGroupMessageInterceptor(interceptor GroupMessageInterce
 }
 
 func (client *Client) Run(addr string) {
+	client.LoginInfo = client.GetLoginInfo()
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.POST("/", func(c *gin.Context) {
@@ -67,9 +69,14 @@ const (
 	discuss = "discuss"
 )
 
+type GroupContext struct {
+	LoginInfo *LoginInfo
+	Message   *GroupMessage
+}
+
 type PrivateMessageHandler func(message *PrivateMessage)
 
-type GroupMessageHandler func(message *GroupMessage)
+type GroupMessageHandler func(context *GroupContext)
 
 type DiscussMessageHandler func(message *DiscussMessage)
 
@@ -150,7 +157,8 @@ func (client *Client) handleGroupMessage(bytes []byte) error {
 
 	// message handler
 	for _, handler := range client.groupMessageHandlers {
-		handler(&message)
+		context := &GroupContext{Message: &message, LoginInfo: client.LoginInfo}
+		handler(context)
 	}
 	return nil
 }
@@ -193,4 +201,32 @@ func (client *Client) SendMessage(message string, groupId int64) {
 
 	body, _ := ioutil.ReadAll(resp.Body)
 	log.Println("api response Body:", string(body))
+}
+
+func (client *Client) GetLoginInfo() *LoginInfo {
+	loginInfoUrl := client.HttpApiAddr + "/get_login_info"
+
+	resp, err := http.Get(loginInfoUrl)
+	if err != nil {
+		log.Println(err)
+		return nil
+	}
+	defer resp.Body.Close()
+
+	result := struct {
+		Result
+		Data *LoginInfo `json:"data"`
+	}{}
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Println(err)
+		return nil
+	}
+	log.Println("GetLoginInfo: ", string(b))
+	err = json.Unmarshal(b, &result)
+	if err != nil {
+		log.Println(err)
+		return nil
+	}
+	return result.Data
 }
