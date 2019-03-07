@@ -110,6 +110,7 @@ func main() {
 		}
 
 		if len(keywordInfos) == 0 {
+			cqbotClient.SendMessage("miu", *c.Message.GroupId)
 			return
 		}
 		log.Println("keywordInfos: ", keywordInfos)
