@@ -197,12 +197,12 @@ func main() {
 			return
 		}
 
-		for i := 0; i < 5; i++ {
-			words, err := findRandomMessagePhrase("fuck")
-			if err != nil {
-				panic(err)
-			}
-			cqbotClient.SendMessage(words+buildAt(atUserId), *c.Message.GroupId)
+		words, err := queryRandomMessagePhrase("fuck", 3)
+		if err != nil {
+			panic(err)
+		}
+		for _, word := range words {
+			cqbotClient.SendMessage(word+buildAt(atUserId), *c.Message.GroupId)
 			time.Sleep(2 * time.Second)
 		}
 	})
@@ -287,6 +287,23 @@ func findAliasUserId(alias string) (savedAlias string, err error) {
 func findRandomMessagePhrase(t string) (content string, err error) {
 	row := db.QueryRow("select content from cqbot_message_phrase where type = ? order by rand() limit 1", t)
 	err = row.Scan(&content)
+	return
+}
+
+func queryRandomMessagePhrase(t string, times int) (contents []string, err error) {
+	rows, err := db.Query("select content from cqbot_message_phrase where type = ? order by rand() limit ?", t, times)
+	if err != nil {
+		return
+	}
+
+	for rows.Next() {
+		content := ""
+		err = rows.Scan(&content)
+		if err != nil {
+			return
+		}
+		contents = append(contents, content)
+	}
 	return
 }
 
