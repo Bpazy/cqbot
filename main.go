@@ -208,6 +208,17 @@ func main() {
 	})
 
 	cqbotClient.AddGroupMessageHandler(func(c *cqbot.GroupContext) {
+		if *c.Message.Message == "炮粉干我" {
+			cqbotClient.SendMessage("真尼玛贱", *c.Message.GroupId)
+			words, err := findRandomMessagePhrase("fuck")
+			if err != nil {
+				panic(err)
+			}
+			cqbotClient.SendMessage(words, *c.Message.GroupId)
+		}
+	})
+
+	cqbotClient.AddGroupMessageHandler(func(c *cqbot.GroupContext) {
 		r := regexp.MustCompile("set (?P<cmd>.+?) (?P<content>.+)")
 		submatch := r.FindStringSubmatch(*c.Message.Message)
 		cmdMap := make(map[string]string)
