@@ -67,7 +67,7 @@ func main() {
 	})
 
 	cqbotClient.AddGroupMessageHandler(func(c *cqbot.GroupContext) {
-		if c.Message == nil {
+		if !strings.HasPrefix(*c.Message.Message, "炮粉通报一下七日内") {
 			return
 		}
 		r := regexp.MustCompile("炮粉通报一下七日内【(.+)】榜")
