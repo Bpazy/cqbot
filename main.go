@@ -186,9 +186,9 @@ func main() {
 		if len(keywords) < 2 {
 			return
 		}
-		atUserId, err := findAliasUserId(keywords[1])
-		if err != nil {
-			log.Println("find alias error: ", err)
+		atUserId, found := findUserIdByAlias(keywords[1])
+		if !found {
+			log.Println("find alias error: ")
 			cqbotClient.SendMessage("少你妈火，没设置alias干死尼玛干死", *c.Message.GroupId)
 			return
 		}
@@ -219,7 +219,11 @@ func main() {
 	})
 
 	cqbotClient.AddGroupMessageHandler(func(c *cqbot.GroupContext) {
-		r := regexp.MustCompile("set (?P<cmd>.+?) (?P<content>.+)")
+		if !strings.HasPrefix(*c.Message.Message, "set") && !strings.HasPrefix(*c.Message.Message, "reset") {
+			return
+		}
+
+		r := regexp.MustCompile("(?P<cmdType>set|reset) (?P<cmd>.+?) (?P<content>.+)")
 		submatch := r.FindStringSubmatch(*c.Message.Message)
 		cmdMap := make(map[string]string)
 
@@ -234,6 +238,7 @@ func main() {
 
 		cmd := cmdMap["cmd"]
 		content := cmdMap["content"]
+		cmdType := cmdMap["cmdType"]
 		if content == "" {
 			return
 		}
@@ -245,21 +250,28 @@ func main() {
 				cqbotClient.SendMessage("Set failed 并不能阻止我甘玲娘", *c.Message.GroupId)
 				return
 			}
-		}
-
-		if cmd == "alias" {
+		} else if cmd == "alias" {
 			// set alias 123456789 赵炮
 			split := strings.Split(content, " ")
 			if len(split) != 2 {
 				cqbotClient.SendMessage("Please use [set alias 123456789 customAlias]", *c.Message.GroupId)
 				return
 			}
-			savedAlias, err := saveAlias(split[0], split[1])
-			if err != nil {
-				log.Println(err)
+			userId := split[0]
+			alias := split[1]
+			savedAlias, found := findAliasByUserId(userId)
+			if found {
+				if cmdType == "reset" {
+					updateAlias(userId, alias)
+					cqbotClient.SendMessage("Set success", *c.Message.GroupId)
+					return
+				}
 				cqbotClient.SendMessage(fmt.Sprintf("尼玛之前就设置别名是%s了", savedAlias), *c.Message.GroupId)
 				return
 			}
+			saveAlias(userId, alias)
+		} else {
+			cqbotClient.SendMessage("你set你妈了个蹭次呢？", *c.Message.GroupId)
 		}
 		cqbotClient.SendMessage("Set success", *c.Message.GroupId)
 	})
@@ -267,21 +279,36 @@ func main() {
 	cqbotClient.Run("0.0.0.0:" + *port)
 }
 
-func saveAlias(userId, alias string) (savedAlias string, err error) {
-	row := db.QueryRow("select alias from cqbot_alias where user_id = ?", userId)
-	err = row.Scan(&savedAlias)
-	if err == nil || savedAlias != "" {
-		return savedAlias, errors.New("alias already exists: " + savedAlias)
+func saveAlias(userId, alias string) {
+	_, err := db.Exec("insert into cqbot_alias (pk_id, alias, user_id) values (?, ?,?)", id.Id(), alias, userId)
+	if err != nil {
+		panic(err)
 	}
-
-	_, err = db.Exec("insert into cqbot_alias (pk_id, alias, user_id) values (?, ?,?)", id.Id(), alias, userId)
-	return
 }
 
-func findAliasUserId(alias string) (savedAlias string, err error) {
+func updateAlias(userId, alias string) {
+	_, err := db.Exec("update cqbot_alias set alias = ? where user_id = ?", alias, userId)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func findUserIdByAlias(alias string) (userId string, found bool) {
 	row := db.QueryRow("select user_id from cqbot_alias where alias = ?", alias)
-	err = row.Scan(&savedAlias)
-	return
+	err := row.Scan(&userId)
+	if err != nil {
+		return
+	}
+	return userId, true
+}
+
+func findAliasByUserId(userId string) (savedAlias string, found bool) {
+	row := db.QueryRow("select alias from cqbot_alias where user_id = ?", userId)
+	err := row.Scan(&savedAlias)
+	if err != nil {
+		return
+	}
+	return savedAlias, true
 }
 
 func findRandomMessagePhrase(t string) (content string, err error) {
