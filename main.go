@@ -177,7 +177,7 @@ func main() {
 	})
 
 	cqbotClient.AddGroupMessageHandler(func(c *cqbot.GroupContext) {
-		if !strings.Contains(*c.Message.Message, "炮粉") {
+		if !strings.HasPrefix(*c.Message.Message, "炮粉给我干死") {
 			return
 		}
 
