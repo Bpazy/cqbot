@@ -293,7 +293,7 @@ func main() {
 	cqbotClient.AddGroupMessageHandler(func(c *cqbot.GroupContext) {
 		submatch := r3.FindStringSubmatch(*c.Message.Message)
 		if len(submatch) != 2 {
-			cqbotClient.SendMessage("我查你妈了个崩次", *c.Message.GroupId)
+			return
 		}
 
 		name := submatch[1]
