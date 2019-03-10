@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -9,7 +10,10 @@ import (
 	"github.com/go-redis/redis"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
+	"github.com/nightexcessive/steamid"
+	"io/ioutil"
 	"log"
+	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
@@ -186,7 +190,7 @@ func main() {
 		if len(keywords) < 2 {
 			return
 		}
-		atUserId, found := findUserIdByAlias(keywords[1])
+		atUserId, found := findContentByAlias("qq_number", keywords[1])
 		if !found {
 			log.Println("find alias error: ")
 			cqbotClient.SendMessage("少你妈火，没设置alias干死尼玛干死", *c.Message.GroupId)
@@ -259,51 +263,107 @@ func main() {
 			}
 			userId := split[0]
 			alias := split[1]
-			savedAlias, found := findAliasByUserId(userId)
+			savedAlias, found := findAliasByContent("qq_number", userId)
 			if found {
 				if cmdType == "reset" {
-					updateAlias(userId, alias)
+					updateAlias("qq_number", userId, alias)
 					cqbotClient.SendMessage("Set success", *c.Message.GroupId)
 					return
 				}
 				cqbotClient.SendMessage(fmt.Sprintf("尼玛之前就设置别名是%s了", savedAlias), *c.Message.GroupId)
 				return
 			}
-			saveAlias(userId, alias)
+			saveAlias("qq_number", userId, alias)
+		} else if cmd == "steam64" {
+			split := strings.Split(content, " ")
+			if len(split) != 2 {
+				cqbotClient.SendMessage("Please use [set steam64 76561198129256636 二狗]", *c.Message.GroupId)
+				return
+			}
+			steam64 := split[0]
+			alias := split[1]
+			saveAlias("steam64", alias, steam64)
 		} else {
 			cqbotClient.SendMessage("你set你妈了个蹭次呢？", *c.Message.GroupId)
 		}
 		cqbotClient.SendMessage("Set success", *c.Message.GroupId)
 	})
 
+	r3 := regexp.MustCompile("炮粉查查(.+)最近的比赛")
+	cqbotClient.AddGroupMessageHandler(func(c *cqbot.GroupContext) {
+		submatch := r3.FindStringSubmatch(*c.Message.Message)
+		if len(submatch) != 2 {
+			cqbotClient.SendMessage("我查你妈了个崩次", *c.Message.GroupId)
+		}
+
+		name := submatch[1]
+		steam64Id, found := findContentByAlias("steam64", name)
+		if !found {
+			cqbotClient.SendMessage("没设置steam64查你妈了个崩薄", *c.Message.GroupId)
+			return
+		}
+
+		uintSteamId, err := strconv.ParseUint(steam64Id, 10, 64)
+		if err != nil {
+			panic(err)
+		}
+		recentMatchs := GetRecentMatches(ConvertSteamId64ToSteamAccountId(uintSteamId))
+
+		result := ""
+		for _, match := range recentMatchs[:10] {
+			kda := (match.Kills + match.Assists) / match.Deaths
+			comment := ""
+			if kda > 30 {
+				comment = fmt.Sprintf("你比样开挂的吧，kda%d？", kda)
+			} else if kda > 20 {
+				comment = fmt.Sprintf("kda%d？羡慕练小号的", kda)
+			} else if kda > 10 {
+				comment = fmt.Sprintf("kda%d，HGTV复兴有望好吧", kda)
+			} else if kda > 5 {
+				comment = fmt.Sprintf("KDA到%d了，不错", kda)
+			} else if kda > 3 {
+				comment = fmt.Sprintf("KDA%d，马马虎虎", kda)
+			} else if kda > 1 {
+				comment = fmt.Sprintf("真你妈菜，kda才%d，我代表老板干死你！", kda)
+			} else {
+				comment = fmt.Sprintf("KDA才%d你还是HGTV的人吗？", kda)
+			}
+
+			nowString := time.Unix(int64(match.StartTime), 0).Format("2006-01-02 15:04")
+			result = result + fmt.Sprintf("%s打了%d分钟，%s\r\n",
+				nowString, match.Duration/60, comment)
+		}
+		cqbotClient.SendMessage(result, *c.Message.GroupId)
+	})
+
 	cqbotClient.Run("0.0.0.0:" + *port)
 }
 
-func saveAlias(userId, alias string) {
-	_, err := db.Exec("insert into cqbot_alias (pk_id, alias, user_id) values (?, ?,?)", id.Id(), alias, userId)
+func saveAlias(tp, alias, content string) {
+	_, err := db.Exec("insert into cqbot_alias (pk_id, type, alias, value) values (?,?,?,?)", id.Id(), tp, alias, content)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func updateAlias(userId, alias string) {
-	_, err := db.Exec("update cqbot_alias set alias = ? where user_id = ?", alias, userId)
+func updateAlias(tp, alias, content string) {
+	_, err := db.Exec("update cqbot_alias set alias = ? where type = ? and value = ?", alias, tp, content)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func findUserIdByAlias(alias string) (userId string, found bool) {
-	row := db.QueryRow("select user_id from cqbot_alias where alias = ?", alias)
-	err := row.Scan(&userId)
+func findContentByAlias(tp, alias string) (content string, found bool) {
+	row := db.QueryRow("select value from cqbot_alias where type = ? and alias = ?", tp, alias)
+	err := row.Scan(&content)
 	if err != nil {
 		return
 	}
-	return userId, true
+	return content, true
 }
 
-func findAliasByUserId(userId string) (savedAlias string, found bool) {
-	row := db.QueryRow("select alias from cqbot_alias where user_id = ?", userId)
+func findAliasByContent(tp, content string) (savedAlias string, found bool) {
+	row := db.QueryRow("select alias from cqbot_alias where type = ? and value = ?", tp, content)
 	err := row.Scan(&savedAlias)
 	if err != nil {
 		return
@@ -348,4 +408,26 @@ func saveMessagePhrase(t, words string) error {
 
 func buildAt(userId string) string {
 	return fmt.Sprintf("[CQ:at,qq=%s]", userId)
+}
+
+func GetRecentMatches(accountId string) (recentMatchs []RecentMatch) {
+	recentMatchUrl := "https://api.opendota.com/api/players/{playerId}/recentMatches"
+	resp, err := http.Get(strings.Replace(recentMatchUrl, "{playerId}", accountId, -1))
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+
+	bytes, err := ioutil.ReadAll(resp.Body)
+	err = json.Unmarshal(bytes, &recentMatchs)
+	if err != nil {
+		panic(err)
+	}
+	return
+}
+
+func ConvertSteamId64ToSteamAccountId(steam64Id uint64) string {
+	steamId3 := steamid.ParseCommunityID(steam64Id, steamid.AccountTypeIndividual).SteamID3()
+	split := strings.Split(steamId3, ":")
+	return strings.TrimRight(split[2], "]")
 }
