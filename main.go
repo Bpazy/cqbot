@@ -263,17 +263,17 @@ func main() {
 			}
 			userId := split[0]
 			alias := split[1]
-			savedAlias, found := findAliasByContent("qq_number", userId)
+			savedAlias, found := findAliasByValue("qq_number", userId)
 			if found {
 				if cmdType == "reset" {
-					updateAlias("qq_number", userId, alias)
+					updateAlias("qq_number", alias, userId)
 					cqbotClient.SendMessage("Set success", *c.Message.GroupId)
 					return
 				}
 				cqbotClient.SendMessage(fmt.Sprintf("尼玛之前就设置别名是%s了", savedAlias), *c.Message.GroupId)
 				return
 			}
-			saveAlias("qq_number", userId, alias)
+			saveAlias("qq_number", alias, userId)
 		} else if cmd == "steam64" {
 			split := strings.Split(content, " ")
 			if len(split) != 2 {
@@ -362,7 +362,7 @@ func findContentByAlias(tp, alias string) (content string, found bool) {
 	return content, true
 }
 
-func findAliasByContent(tp, content string) (savedAlias string, found bool) {
+func findAliasByValue(tp, content string) (savedAlias string, found bool) {
 	row := db.QueryRow("select alias from cqbot_alias where type = ? and value = ?", tp, content)
 	err := row.Scan(&savedAlias)
 	if err != nil {
